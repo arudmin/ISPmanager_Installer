@@ -260,7 +260,7 @@ do
 
 	echo
 	echo "You don't have the active license for this server."
-        echo "Please, use the following URL to order a trial $mgrname license"
+    echo "Please, use the following URL to order a trial $mgrname license"
 	echo "$url"
 	echo "Moreover, you may specify another ip using the  --ip option."
 	echo "When you order the license, press the Enter button to continue or Ctrl+C to abort installation."

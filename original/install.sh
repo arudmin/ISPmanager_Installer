@@ -12,7 +12,6 @@ Usage:
 	--os OS		Force use OS distribution
 	--arch ARCH	Force use ARCH architecture
 	--ip IP		Use IP for licence check
-	--stable	Force install stable release
 	
 EOU
 }
@@ -102,10 +101,6 @@ do
 			ipparam="ip=$ip"
 			shift 2
 			;;
-		--stable)
-			stable="true"
-			shift 1
-			;;
 		-*)
 			echo Unrecognized flag : "$1" >&2
 			Usage
@@ -135,7 +130,7 @@ if test $# -eq 0 ; then
 #	fi
 
 
-	mgrlist="ISPmanager BILLmanager VDSmanager IFXmanager DNSmanager IPmanager VMmanager"
+	mgrlist="ISPmanager BILLmanager VDSmanager DCImanager DNSmanager IPmanager VMmanager VEmanager"
 	while true 
 	do
 		echo
@@ -169,7 +164,7 @@ if test $# -eq 0 ; then
 			if test "$v" != "0"; then
 				eval mgrname=\$ispval$v
 			fi
-		
+
 		elif test "$n" = "2"; then
 			billlist="BILLmanager-Standart BILLmanager-Advanced BILLmanager-Corporate BILLmanager-RUCENTER";
 			j="1"
@@ -221,7 +216,21 @@ fi
 while true
 do
 	echo "Checking license ..."
-	activelist=`$fetch - -q "http://lic.ispsystem.com/liclist.cgi?$ipparam"`
+	$fetch /tmp/1.$$.tmp -q "http://lic.ispsystem.com/liclist.cgi?$ipparam" && mv /tmp/1.$$.tmp /tmp/$$.tmp &
+	$fetch /tmp/2.$$.tmp -q "http://lic2.ispsystem.com/liclist.cgi?$ipparam" && mv /tmp/2.$$.tmp /tmp/$$.tmp &
+
+	i=0
+	while [ ! -f /tmp/$$.tmp ]; do
+		if [ $i -gt 60 ]; then
+			echo "Unable to load license"
+			exit
+		fi
+
+		sleep 1
+		i=$(($i + 1))
+	done
+
+	activelist=$(cat /tmp/$$.tmp)
 	for i in $activelist; do
 		if test "$mgrname" = "$i"; then
 			ok="1"
@@ -252,10 +261,12 @@ do
 		url="https://my.ispsystem.com/manager/billmgr?func=register&project=1&welcomfunc=software.order&welcomparam=price=3136%20period=1926"
 	elif test "$mgrname" = "IPmanager"; then
 		url="https://my.ispsystem.com/manager/billmgr?func=register&project=1&welcomfunc=software.order&welcomparam=price=2891%20period=1814"
-	elif test "$mgrname" = "IFXmanager"; then
-		url="https://my.ispsystem.com/manager/billmgr?func=register&project=1&welcomfunc=software.order&welcomparam=price=3193%20period=1951"
+	elif test "$mgrname" = "DCImanager"; then
+		url="https://my.ispsystem.com/manager/billmgr?func=register&project=1&welcomfunc=software.order&welcomparam=price=3932%20period=2543"
 	elif test "$mgrname" = "VMmanager"; then
 		url="https://my.ispsystem.com/manager/billmgr?func=register&project=1&welcomfunc=software.order&welcomparam=price=3045%20period=1898"
+	elif test "$mgrname" = "VMmanager"; then
+		url="https://my.ispsystem.com/manager/billmgr?func=register&project=1&welcomfunc=software.order&welcomparam=price=3651%20period=2363"
 	fi
 
 	echo
@@ -275,7 +286,7 @@ tmpdir="/tmp/$mgrname"
 mkdir -p $tmpdir
 cd $tmpdir
 
-if test "$n" = "4" || test "$n" = "5" || test "$n" = "6" || test "$n" = "7"; then
+if test "$n" = "1" || test "$n" = "5" || test "$n" = "6"; then
 	read -p "What version of product do You want install: 4 or 5 ?" cv
 	if test "$cv" = "5"; then
 		shfile=$tmpdir/install.5.sh
@@ -285,6 +296,13 @@ if test "$n" = "4" || test "$n" = "5" || test "$n" = "6" || test "$n" = "7"; the
 		sh $shfile
 		exit 0
 	fi
+elif test "$n" = "4" || test "$n" = "7" || test "$n" = "8"; then
+	shfile=$tmpdir/install.5.sh
+	shurl="http://download.ispsystem.com/install.5.sh"
+	$fetch $shfile "$shurl"
+	clear
+	sh $shfile
+	exit 0
 fi
 
 
@@ -305,26 +323,23 @@ do
 	else goon="true"; fi
 done
 
-#stable="false"
+stable="false"
 goon="true"
 while [ $goon = "true" ]
 do
     goon="false"
-	if [ "$stable" = "true" ]; then
-			url="http://$mirror/$os/$arch/$mgrname/install.tgz"
-	else
-		echo "1) beta version - has the latest functionality"
-		echo "2) stable version - time-proved version"
-		echo
-		read -p "Please choose version to install: " n
-		echo
-		if [ "$n" = "1" ]; then 
-			url="http://$mirror/$os/$arch/$mgrname/install.tgz"
-		elif [ "$n" = "2" ]; then
-			url="http://$mirror/$os/$arch/$mgrname/install.stable.tgz"
-			stable="true";
-		else goon="true"; fi
-	fi
+    echo "1) beta version - has the latest functionality"
+    echo "2) stable version - time-proved version"
+    echo
+    read -p "Please choose version to install: " n
+    echo
+
+    if [ "$n" = "1" ]; then 
+		url="http://$mirror/$os/$arch/$mgrname/install.tgz"
+    elif [ "$n" = "2" ]; then
+		url="http://$mirror/$os/$arch/$mgrname/install.stable.tgz"
+		stable="true";
+    else goon="true"; fi
 done
 
 archive="$tmpdir/install.tgz"
@@ -374,9 +389,20 @@ fi
 installname=`echo ${mgrname} | sed -e 's/-.*$//'`
 
 if test "$installname" = "ISPmanager"; then
-	$fetch etc/ispmgr.lic -q "http://lic.ispsystem.com/ispmgr.lic?$ipparam"
+        $fetch etc/ispmgr.lic -q "http://lic.ispsystem.com/ispmgr.lic?$ipparam" &
+        $fetch etc/ispmgr.lic -q "http://lic2.ispsystem.com/ispmgr.lic?$ipparam" &
+
+        i=0
+        while [ ! -f etc/ispmgr.lic ]; do
+                if [ $i -gt 60 ]; then
+                        echo "Unable to load license"
+                        exit
+                fi
+
+                sleep 1
+                i=$(($i + 1))
+        done
 fi
 
-#sh sbin/${installname}-install.sh $mirror $ip
-cd sbin
-./ispinstall -s -c apache -c nginx -c ftp -c smtp -c pop3 -c dns -c php -c myadmin
+sh sbin/${installname}-install.sh $mirror $ip
+
